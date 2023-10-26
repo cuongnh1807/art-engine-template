@@ -1,0 +1,28 @@
+{
+  "name": "@hashlips-lab/art-engine-template",
+  "version": "0.0.0",
+  "license": "MIT",
+  "contributors": [
+    "Daniel Eugene Botha <hashlipsnft@gmail.com> <https://hashlips.online>",
+    "Marco Lipparini <developer@liarco.net> <https://www.liarco.net>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hashlips-lab/art-engine-template.git"
+  },
+  "private": true,
+  "scripts": {
+    "start": "rm -rf ./dist && tsc && node dist/index.js",
+    "build": "rm -rf ./dist && tsc"
+  },
+  "dependencies": {
+    "@hashlips-lab/art-engine": "^2.0.0-alpha7",
+    "random-js": "^2.1.0",
+    "sharp": "^0.32.6",
+    "typescript": "^5.1.6"
+  },
+  "devDependencies": {
+    "@types/merge-images": "^1.2.3",
+    "@types/node": "^20.8.7"
+  }
+}
