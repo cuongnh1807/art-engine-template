@@ -16,12 +16,13 @@
     "build": "rm -rf ./dist && tsc"
   },
   "dependencies": {
-    "@hashlips-lab/art-engine": "^2.0.0-alpha7",
+    "crypto-js": "^4.2.0",
     "random-js": "^2.1.0",
     "sharp": "^0.32.6",
     "typescript": "^5.1.6"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.1.3",
     "@types/merge-images": "^1.2.3",
     "@types/node": "^20.8.7"
   }

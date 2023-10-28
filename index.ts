@@ -1,93 +1,79 @@
-import crypto from "crypto"
 import sharp from "sharp";
-import path from "path";
-import { MersenneTwister19937, bool, real } from "random-js"
-import fs from "fs"
+import { layerPandopes } from "./config";
+import * as crypto from "crypto-js";
 
-export type TAttribute = {
-  trait_type: string;
-  value: string
-}
+let myMap: Map<string, number> = new Map();
 
-export type TOption = {
-  name: string,
-  file: string,
-  weight: number
-}
+class Pandope {
+  body: string = "";
+  glass: string = "";
+  shirt: string = "";
+  hat: string = "";
+  wing: string = "";
 
-export type TLayer = {
-  name: string,
-  probability: number,
-  zIndex: number,
-  options: TOption[]
-}
-
-export type TOptionSelection = {
-  images: { zIndex: number, filename: string }[],
-  selectedTraits: TAttribute[]
-}
-
-export class ArtNFTEngine {
-
-  private calculateDna(attributes: TAttribute[]) {
-    const dnaSource = attributes
-      .sort((a, b) => {
-        const nameA = a['trait_type'].toUpperCase();
-        const nameB = b['trait_type'].toUpperCase();
-        if (nameA < nameB) {
-          return -1;
-        }
-        if (nameA > nameB) {
-          return 1;
-        }
-        return 0;
-      });
-    return crypto
-      .createHash("sha1")
-      .update(JSON.stringify(dnaSource))
-      .digest("hex");
+  constructor() {
+    this.body = "";
+    this.glass = "";
+    this.shirt = "";
+    this.hat = "";
+    this.wing = "";
   }
 
-  private pickWeighted(mt: MersenneTwister19937, options: TOption[]) {
-    const weightSum = options.reduce((acc, option) => {
-      return acc + (option.weight ?? 1.0)
-    }, 0)
-
-    // random a number from 0 => weightSum theo 1 cái seed đã định (nên có seed để việc randomly diễn ra theo đúng phân phối)
-    const r = real(0.0, weightSum, false)(mt)
-
-    // for lần lượt các option, nếu số random < tổng weight đến tại 1 options nào đó thì chọn
-    let summedWeight = 0.0;
-    for (const option of options) {
-      summedWeight += option.weight ?? 1.0
-      if (r <= summedWeight) {
-        return option
-      }
+  updateResult = (key = "", result = "") => {
+    switch (key) {
+      case "body":
+        this.body = result;
+        break;
+      case "glass":
+        this.glass = result;
+        break;
+      case "shirt":
+        this.shirt = result;
+        break;
+      case "hat":
+        this.hat = result;
+        break;
+      case "wing":
+        this.wing = result;
+        break;
+      default:
+        break;
     }
-  }
+  };
 
-  private randomlySelectLayers(layersPath: string, layers: TLayer[]) {
-    const mt = MersenneTwister19937.autoSeed()
+  private getResult = (key = ""): string => {
+    if (key === "body") return this.body;
+    if (key === "glass") return this.glass;
+    if (key === "shirt") return this.shirt;
+    if (key === "hat") return this.hat;
+    if (key === "wing") return this.wing;
 
-    let images = []
-    let selectedTraits: TAttribute[] = []
+    return "";
+  };
 
-    for (const layer of layers) {
-      if (bool(layer.probability)(mt)) {
-        let selected = this.pickWeighted(mt, layer.options)
-        if (selected) {
-          selectedTraits.push({ trait_type: layer.name, value: selected.name })
-          images.push({ zIndex: layer.zIndex, filename: path.join(layersPath, selected.file) })
-        }
-      }
+  private getSelectionFile = (): Array<string> => {
+    let ans: Array<string> = [];
+
+    const layers = layerPandopes.sort((a, b) => a.position - b.position);
+    for (let index = 0; index < layers.length; index++) {
+      const layer = layers[index];
+      const key = layer.key;
+
+      const result = this.getResult(key);
+      if (result === "none") continue;
+
+      const item = layer.items.find((item) => item.name === result);
+      // console.log(key + " : " + item?.path);
+      if (item && item?.path) ans.push(item.path);
     }
-    return {
-      images: images.sort((a, b) => a.zIndex - b.zIndex),
-      selectedTraits
-    }
-  }
 
-  async mergeLayersAndSave(images: string[], outputFile: string) {
+    return ans;
+  };
+
+  drawImage = async (path = "") => {
+    const selection = this.getSelectionFile();
+    // console.log("selection : ", selection);
+
     await sharp({
       create: {
         width: 1500,
@@ -95,57 +81,89 @@ export class ArtNFTEngine {
         channels: 4,
         background: { r: 0, g: 0, b: 0, alpha: 0 },
       },
-    }).composite(images.map(item => ({
-      input: item,
-      left: 0,
-      top: 0,
-    }))).toFile(outputFile)
-  }
+    })
+      .composite(
+        selection.map((item) => ({
+          input: item,
+          left: 0,
+          top: 0,
+        }))
+      )
+      .toFile(path);
+  };
 
-  async generateNFTTraits(layersPath: string) {
-    if (!fs.existsSync(layersPath)) {
-      throw new Error(`Not exist folder: ${layersPath}`)
-    }
-    const content = require(layersPath + "/config.ts")
-    const selection = this.randomlySelectLayers(layersPath, content.layers)
-    const dna = this.calculateDna(selection.selectedTraits);
-    return {
-      dna,
-      selection
-    }
-  }
+  getHash = (): string => {
+    const ans =
+      "body_" +
+      this.body +
+      "_glass_" +
+      this.glass +
+      "_shirt_" +
+      this.shirt +
+      "_hat_" +
+      this.hat +
+      "_wing_" +
+      this.wing;
+
+    return crypto.MD5(ans).toString();
+  };
+
+  printResult = () => {
+    console.log("\nPandope Item : ");
+    console.log("body : " + this.body);
+    console.log("glass : " + this.glass);
+    console.log("shirt : " + this.shirt);
+    console.log("hat : " + this.hat);
+    console.log("wing : " + this.wing);
+  };
 }
 
-(async () => {
-  const layersPath = path.join(process.cwd(), 'pandope')
-  const outputPath = path.join(process.cwd(), 'pandope-output')
-  if (!fs.existsSync(outputPath)) {
-    fs.mkdirSync(outputPath);
-  }
-  const ae = new ArtNFTEngine();
+const checkExist = (hash: string) => {
+  return myMap.get(hash) === 1;
+};
 
-  // check dna gen trung
-  const dnaSet = new Set()
-  const numberGen = 10
-  const count = 0
+const randomNFT = (): Pandope => {
+  let ans = new Pandope();
 
-  while (count < numberGen) {
-    console.log(`Generate NFT ${count}`)
-    let { dna, selection } = await ae.generateNFTTraits(layersPath);
-    while (dnaSet.has(dna)) {
-      console.log(`Duplicate NFT ${count}......`)
-      const result = await ae.generateNFTTraits(layersPath);
-      dna = result.dna;
-      selection = result.selection
+  for (let index = 0; index < layerPandopes.length; index++) {
+    const number = Math.random() * 100;
+    let result = "none";
+    const layer = layerPandopes[index];
+
+    let cnt = 0;
+    for (let i = 0; i < layer.items.length; i++) {
+      const item = layer.items[i];
+      if (number > cnt && number <= cnt + item.percent) {
+        result = item.name;
+        break;
+      }
+
+      cnt += item.percent;
     }
-    dnaSet.add(dna)
 
-    await ae.mergeLayersAndSave(
-      selection.images.map(item => item.filename),
-      path.join(outputPath, `${dna}.png`)
-    )
-
-    // save the dna data
-    fs.writeFileSync(path.join(outputPath, `${dna}.json`), JSON.stringify(selection.selectedTraits))
+    ans.updateResult(layer.key, result);
   }
-})()
+
+  return ans;
+};
+
+const main = async () => {
+  for (let index = 0; index < 24; index++) {
+    let ans = randomNFT();
+    while (checkExist(ans.getHash())) ans = randomNFT();
+
+    await ans.drawImage(`output/item_${index}.png`);
+    myMap.set(ans.getHash(), 1);
+    ans.printResult();
+  }
+
+  // let ans = new Pandope();
+  // ans.updateResult("body", "default");
+  // ans.updateResult("glass", "urban");
+  // ans.updateResult("shirt", "none");
+  // ans.updateResult("hat", "futuristic");
+  // ans.updateResult("wing", "mythic");
+  // await ans.drawImage("output/test.png");
+};
+
+main();
